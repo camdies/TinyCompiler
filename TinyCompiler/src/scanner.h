@@ -72,6 +72,10 @@ private:
         INDOUBLECOLON,  // 新增：读到 :: 后，等待 =
         INLETTER,
         INSCI, INSCI_SIGN, INSCI_NUM,
+        INFLOAT,          // 新增：读到小数点后
+        INFLOAT_SCI,      // 新增：浮点数的科学计数法 e/E
+        INFLOAT_SCI_SIGN, // 新增：浮点数科学计数法的符号
+        INFLOAT_SCI_NUM,  // 新增：浮点数科学计数法的指数数字
         DONE
     };
 

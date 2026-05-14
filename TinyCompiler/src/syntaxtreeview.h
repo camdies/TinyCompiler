@@ -66,6 +66,8 @@ public:
     void expandAll();
     void collapseAll();
 
+    void refreshLayout();
+
 protected:
     void wheelEvent(QWheelEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;

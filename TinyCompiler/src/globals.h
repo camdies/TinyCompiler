@@ -33,7 +33,7 @@ enum class TokenType {
     ENDIF,                          // endif (新增，用于新if语句)
 
     // ---- 多字符token ----
-    ID, NUM, LETTER,                // 标识符、数字、字母(正则表达式中用)
+    ID, NUM, FLOAT, LETTER,                // 标识符、整数、浮点数、字母(正则表达式中用)
 
     // ---- 赋值运算符 ----
     ASSIGN,                         // :=  (算术表达式赋值)

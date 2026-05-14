@@ -68,11 +68,19 @@ std::string TreeNode::getDisplayText() const
             }
         }
         case ExpKind::ConstK:
+            // 统一用 attr.name 存储原始数字字符串
+            return "number(" + attr.name + ")";
+
+        /*
+        case ExpKind::ConstK:
             if (!attr.name.empty()) {
-                // 科学计数法，显示原始字符串
+                // 浮点数或科学计数法，显示原始字符串
                 return "number(" + attr.name + ")";
             }
-            return "number(" + std::to_string(attr.val) + ")";
+            // 整数也用name存储，统一走上面分支
+            return "number(" + attr.name + ")";
+        */
+
         case ExpKind::IdK:
             return "id(" + attr.name + ")";
         case ExpKind::SelfIncK:

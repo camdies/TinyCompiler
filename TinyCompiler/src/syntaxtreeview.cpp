@@ -311,3 +311,26 @@ void SyntaxTreeGraphicsView::clearGraphics(VisualTreeNode* node)
     for (auto* child : node->children)
         clearGraphics(child);
 }
+
+/*=============================================*/
+/*    新增：刷新布局，解决视图尺寸未就绪导致    */
+/*    fitInView 计算错误的问题                   */
+/*=============================================*/
+void SyntaxTreeGraphicsView::refreshLayout()
+{
+    if (root_) {
+        calculateSubtreeWidth(root_);
+        layoutTree(root_, 0, 0);
+        drawTree();
+
+        QRectF bounds = scene_->itemsBoundingRect();
+        bounds.adjust(-30, -30, 30, 30);
+        scene_->setSceneRect(bounds);
+
+        // 只有在视图有有效尺寸时才执行 fitInView
+        if (viewport()->width() > 1 && viewport()->height() > 1) {
+            fitInView(bounds, Qt::KeepAspectRatio);
+            currentScale_ = transform().m11();
+        }
+    }
+}

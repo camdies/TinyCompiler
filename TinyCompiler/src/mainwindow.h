@@ -30,9 +30,9 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QStatusBar>
-#include <QMenuBar>    // ← 新增这一行
-#include <QMenu>       // ← 新增这一行
-
+#include <QMenuBar>
+#include <QMenu>
+#include <QDialog>
 #include <QStackedWidget>
 
 #include "parser.h"
@@ -59,6 +59,8 @@ private slots:
     void onCollapseSelected();  // 折叠选中节点
 
     void onSwitchView();               // 切换目录树/多叉树
+    void onPopupView();          // 新增：弹窗查看语法树
+    void updateButtonStates();   // 新增：根据当前视图模式更新按钮状态
 
 private:
     void setupUI();             // 初始化界面
@@ -66,6 +68,9 @@ private:
     void setupMenuBar();        // 初始化菜单栏
     void showTokens(const std::vector<Token>& tokens);
     void showErrors(const std::vector<std::string>& errors);
+
+    // 新增：同步刷新所有已打开的弹窗
+    void refreshAllPopups();
 
     // UI组件
     QSplitter* mainSplitter_;           // 主分割器（左右分割）
@@ -94,6 +99,7 @@ private:
     // 多叉树视图
     SyntaxTreeGraphicsView* graphicsTreeView_;
     QPushButton* switchViewBtn_;       // 切换按钮
+    QPushButton* popupViewBtn_;    // 新增：弹窗查看按钮
     bool showingTreeView_;             // true=目录树, false=多叉树
     QStackedWidget* treeStack_;        // 用于切换两个视图
 
@@ -115,6 +121,9 @@ private:
 
     // 语法树根节点（需要手动管理内存）
     TreeNode* syntaxTree_;
+
+    // 新增：跟踪所有已打开的弹窗，用于同步刷新
+    QList<QDialog*> openPopups_;
 };
 
 #endif // MAINWINDOW_H

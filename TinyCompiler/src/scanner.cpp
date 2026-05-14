@@ -97,6 +97,10 @@ Token Scanner::getToken()
             if (std::isdigit(c)) {
                 state = State::INNUM;
             }
+            else if (c == '.') {
+                // 可能是 .5 这样以小数点开头的浮点数
+                state = State::INFLOAT;
+            }
             else if (std::isalpha(c)) {
                 state = State::INID;
             }
@@ -305,6 +309,10 @@ Token Scanner::getToken()
             if (std::isdigit(c)) {
                 // 继续读数字
             }
+            else if (c == '.') {
+                // 小数点：转为浮点数状态
+                state = State::INFLOAT;
+            }
             else if (c == 'e' || c == 'E') {
                 state = State::INSCI;
             }
@@ -314,6 +322,62 @@ Token Scanner::getToken()
                 save = false;
                 state = State::DONE;
                 currentToken = TokenType::NUM;
+            }
+            break;
+
+        case State::INFLOAT:
+            // 读到小数点后，必须跟数字
+            if (std::isdigit(c)) {
+                // 继续读小数部分
+            }
+            else if (c == 'e' || c == 'E') {
+                state = State::INFLOAT_SCI;
+            }
+            else {
+                if (c != '\0')
+                    ungetChar();
+                save = false;
+                state = State::DONE;
+                currentToken = TokenType::FLOAT;
+            }
+            break;
+
+        case State::INFLOAT_SCI:
+            if (std::isdigit(c)) {
+                state = State::INFLOAT_SCI_NUM;
+            }
+            else if (c == '+' || c == '-') {
+                state = State::INFLOAT_SCI_SIGN;
+            }
+            else {
+                save = false;
+                state = State::DONE;
+                currentToken = TokenType::ERROR_TOKEN;
+                errors_.push_back("Line " + std::to_string(lineno_)
+                    + ": 浮点科学计数法格式错误,'e'后需要数字或正负号");
+            }
+            break;
+
+        case State::INFLOAT_SCI_SIGN:
+            if (std::isdigit(c)) {
+                state = State::INFLOAT_SCI_NUM;
+            }
+            else {
+                save = false;
+                state = State::DONE;
+                currentToken = TokenType::ERROR_TOKEN;
+                errors_.push_back("Line " + std::to_string(lineno_)
+                    + ": 浮点科学计数法格式错误,符号后需要数字");
+            }
+            break;
+
+        case State::INFLOAT_SCI_NUM:
+            if (!std::isdigit(c)) {
+                if (c != '\0')
+                    ungetChar();
+                save = false;
+                state = State::DONE;
+                currentToken = TokenType::FLOAT;
             }
             break;
 
@@ -329,7 +393,7 @@ Token Scanner::getToken()
                 state = State::DONE;
                 currentToken = TokenType::ERROR_TOKEN;
                 errors_.push_back("Line " + std::to_string(lineno_)
-                    + ": 科学计数法格式错误，'e'后需要数字或正负号");
+                    + ": 科学计数法格式错误,'e'后需要数字或正负号");
             }
             break;
 
@@ -342,7 +406,7 @@ Token Scanner::getToken()
                 state = State::DONE;
                 currentToken = TokenType::ERROR_TOKEN;
                 errors_.push_back("Line " + std::to_string(lineno_)
-                    + ": 科学计数法格式错误，符号后需要数字");
+                    + ": 科学计数法格式错误,符号后需要数字");
             }
             break;
 
@@ -352,7 +416,7 @@ Token Scanner::getToken()
                     ungetChar();
                 save = false;
                 state = State::DONE;
-                currentToken = TokenType::NUM;
+                currentToken = TokenType::FLOAT;  // 科学计数法也归为FLOAT
             }
             break;
 
@@ -433,47 +497,48 @@ std::string Scanner::tokenTypeName(TokenType type)
     switch (type) {
     case TokenType::ENDFILE:        return "EOF";
     case TokenType::ERROR_TOKEN:    return "ERROR";
-    case TokenType::IF:             return "IF";
-    case TokenType::THEN:           return "THEN";
-    case TokenType::ELSE:           return "ELSE";
-    case TokenType::END:            return "END";
-    case TokenType::REPEAT:         return "REPEAT";
-    case TokenType::UNTIL:          return "UNTIL";
-    case TokenType::READ:           return "READ";
-    case TokenType::WRITE:          return "WRITE";
-    case TokenType::WHILE:          return "WHILE";
-    case TokenType::ENDWHILE:       return "ENDWHILE";
-    case TokenType::FOR:            return "FOR";
-    case TokenType::ENDFOR:         return "ENDFOR";
-    case TokenType::ENDIF:          return "ENDIF";
+    case TokenType::IF:             return "IF('if')";
+    case TokenType::THEN:           return "THEN('then')";
+    case TokenType::ELSE:           return "ELSE('else')";
+    case TokenType::END:            return "END('end')";
+    case TokenType::REPEAT:         return "REPEAT('repeat')";
+    case TokenType::UNTIL:          return "UNTIL('until')";
+    case TokenType::READ:           return "READ('read')";
+    case TokenType::WRITE:          return "WRITE('write')";
+    case TokenType::WHILE:          return "WHILE('while')";
+    case TokenType::ENDWHILE:       return "ENDWHILE('endwhile')";
+    case TokenType::FOR:            return "FOR('for')";
+    case TokenType::ENDFOR:         return "ENDFOR('endfor')";
+    case TokenType::ENDIF:          return "ENDIF('endif')";
     case TokenType::ID:             return "ID";
     case TokenType::NUM:            return "NUM";
+    case TokenType::FLOAT:          return "FLOAT";
     case TokenType::LETTER:         return "LETTER";
-    case TokenType::ASSIGN:         return "ASSIGN(:=)";
-    case TokenType::REGEX_ASSIGN:   return "REGEX_ASSIGN(::=)";
-    case TokenType::EQ:             return "EQ(=)";
-    case TokenType::LT:             return "LT(<)";
-    case TokenType::GT:             return "GT(>)";
-    case TokenType::LE:             return "LE(<=)";
-    case TokenType::GE:             return "GE(>=)";
-    case TokenType::NE:             return "NE(<>)";
-    case TokenType::ARROW:          return "ARROW(=>)";
-    case TokenType::PLUS:           return "PLUS(+)";
-    case TokenType::MINUS:          return "MINUS(-)";
-    case TokenType::TIMES:          return "TIMES(*)";
-    case TokenType::OVER:           return "OVER(/)";
-    case TokenType::MOD:            return "MOD(%)";
-    case TokenType::POWER:          return "POWER(^)";
-    case TokenType::INC:            return "INC(++)";
-    case TokenType::DEC:            return "DEC(--)";
-    case TokenType::REGEX_OR:       return "RE_OR(|)";
-    case TokenType::REGEX_CONCAT:   return "RE_CONCAT(&)";
-    case TokenType::REGEX_CLOSURE:  return "RE_CLOSURE(#)";
-    case TokenType::REGEX_OPTIONAL: return "RE_OPTIONAL(?)";
-    case TokenType::REGEX_SLASH:    return "RE_SLASH(/)";
-    case TokenType::LPAREN:         return "LPAREN";
-    case TokenType::RPAREN:         return "RPAREN";
-    case TokenType::SEMI:           return "SEMI(;)";
+    case TokenType::ASSIGN:         return "ASSIGN(':=')";
+    case TokenType::REGEX_ASSIGN:   return "REGEX_ASSIGN('::=')";
+    case TokenType::EQ:             return "EQ('=')";
+    case TokenType::LT:             return "LT('<')";
+    case TokenType::GT:             return "GT('>')";
+    case TokenType::LE:             return "LE('<=')";
+    case TokenType::GE:             return "GE('>=')";
+    case TokenType::NE:             return "NE('<>')";
+    case TokenType::ARROW:          return "ARROW('=>')";
+    case TokenType::PLUS:           return "PLUS('+')";
+    case TokenType::MINUS:          return "MINUS('-')";
+    case TokenType::TIMES:          return "TIMES('*')";
+    case TokenType::OVER:           return "OVER('/')";
+    case TokenType::MOD:            return "MOD('%')";
+    case TokenType::POWER:          return "POWER('^')";
+    case TokenType::INC:            return "INC('++')";
+    case TokenType::DEC:            return "DEC('--')";
+    case TokenType::REGEX_OR:       return "RE_OR('|')";
+    case TokenType::REGEX_CONCAT:   return "RE_CONCAT('&')";
+    case TokenType::REGEX_CLOSURE:  return "RE_CLOSURE('#')";
+    case TokenType::REGEX_OPTIONAL: return "RE_OPTIONAL('?')";
+    case TokenType::REGEX_SLASH:    return "RE_SLASH('/')";
+    case TokenType::LPAREN:         return "LPAREN('(')";
+    case TokenType::RPAREN:         return "RPAREN(')')";
+    case TokenType::SEMI:           return "SEMI(';')";
     default:                        return "UNKNOWN";
     }
 }

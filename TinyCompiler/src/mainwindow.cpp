@@ -18,6 +18,9 @@
 #include <QHeaderView>
 #include <QFont>
 #include <QApplication>
+#include <QDialog>       // 新增
+#include <QTimer>        // 新增
+#include <memory>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), syntaxTree_(nullptr), showingTreeView_(true)
@@ -101,25 +104,29 @@ void MainWindow::setupUI()
     collapseAllBtn_ = new QPushButton("折叠全部", this);
     expandSelBtn_ = new QPushButton("展开选中", this);
     collapseSelBtn_ = new QPushButton("折叠选中", this);
-    switchViewBtn_ = new QPushButton("切换为多叉树", this);  // ★ 新增
+    switchViewBtn_ = new QPushButton("切换为多叉树", this);  // 新增
+    popupViewBtn_ = new QPushButton("弹窗查看", this);  // 新增
 
     expandAllBtn_->setIcon(QApplication::style()->standardIcon(
         QStyle::SP_ArrowDown));
     collapseAllBtn_->setIcon(QApplication::style()->standardIcon(
         QStyle::SP_ArrowUp));
+    popupViewBtn_->setIcon(QApplication::style()->standardIcon(   // 新增
+        QStyle::SP_TitleBarMaxButton));
 
     btnLayout->addWidget(expandAllBtn_);
     btnLayout->addWidget(collapseAllBtn_);
     btnLayout->addWidget(expandSelBtn_);
     btnLayout->addWidget(collapseSelBtn_);
     btnLayout->addStretch();
-    btnLayout->addWidget(switchViewBtn_);  // ★ 新增，放右侧
+    btnLayout->addWidget(popupViewBtn_);   // 新增，放在切换按钮左边
+    btnLayout->addWidget(switchViewBtn_);  // 新增，放右侧
 
-    // ★ 使用 QStackedWidget 切换两种视图
+    // 使用 QStackedWidget 切换两种视图
     treeStack_ = new QStackedWidget(this);
     showingTreeView_ = true;
 
-    // 目录树视图（index 0）
+    // 目录树视图(index 0)
     syntaxTreeView_ = new QTreeView(this);
     treeModel_ = new SyntaxTreeModel(this);
     syntaxTreeView_->setModel(treeModel_);
@@ -173,6 +180,10 @@ void MainWindow::setupUI()
     connect(expandSelBtn_, &QPushButton::clicked, this, &MainWindow::onExpandSelected);
     connect(collapseSelBtn_, &QPushButton::clicked, this, &MainWindow::onCollapseSelected);
     connect(switchViewBtn_, &QPushButton::clicked, this, &MainWindow::onSwitchView);
+    connect(popupViewBtn_, &QPushButton::clicked, this, &MainWindow::onPopupView); // 新增
+
+    // 初始化按钮状态（目录树模式下展开选中/折叠选中可用）
+    updateButtonStates();
 }
 
 /*=============================================*/
@@ -358,10 +369,15 @@ void MainWindow::onAnalyze()
 
     // 显示语法树
     treeModel_->setSyntaxTree(syntaxTree_);
-    syntaxTreeView_->expandAll();   // 默认展开所有节点
-    // 如果当前显示的是多叉树，也要更新
+    syntaxTreeView_->expandAll();
+
+    // 修复：如果当前是多叉树模式，立即构建并延迟刷新布局
     if (!showingTreeView_) {
         graphicsTreeView_->buildFromModel(treeModel_);
+        // 延迟执行 fitInView，确保视图几何尺寸已更新
+        QTimer::singleShot(50, this, [this]() {
+            graphicsTreeView_->refreshLayout();
+            });
     }
 
     // 收集所有错误
@@ -376,12 +392,45 @@ void MainWindow::onAnalyze()
     // 切换到语法分析Tab
     resultTabs_->setCurrentIndex(1);
 
+    // 同步刷新所有已打开的弹窗
+    refreshAllPopups();
+
     if (allErrors.empty()) {
         statusBar()->showMessage("语法分析完成，无错误");
     }
     else {
         statusBar()->showMessage("语法分析完成，发现 "
             + QString::number(allErrors.size()) + " 个错误");
+    }
+}
+
+/*=============================================*/
+/*  新增：同步刷新所有已打开的弹窗           */
+/*=============================================*/
+void MainWindow::refreshAllPopups()
+{
+    // 清理已关闭的弹窗
+    openPopups_.removeIf([](QDialog* d) { return !d->isVisible(); });
+
+    // 通知每个弹窗刷新（通过发出自定义信号或直接调用slot）
+    // 弹窗在创建时已连接 treeModel_ 的 modelReset 信号，会自动刷新
+    // 这里额外触发一次以确保图形视图同步
+    for (QDialog* dlg : openPopups_) {
+        // 找到弹窗中的 SyntaxTreeGraphicsView 并刷新
+        // 弹窗通过 objectName 标记
+        auto* gv = dlg->findChild<SyntaxTreeGraphicsView*>("popupGraphicsView");
+        auto* tv = dlg->findChild<QTreeView*>("popupTreeView");
+        auto* sw = dlg->findChild<QStackedWidget*>("popupStack");
+
+        if (tv) {
+            tv->expandAll();
+        }
+        if (sw && gv && sw->currentWidget() == gv) {
+            gv->buildFromModel(treeModel_);
+            QTimer::singleShot(50, gv, [gv]() {
+                gv->refreshLayout();
+                });
+        }
     }
 }
 
@@ -523,6 +572,27 @@ void MainWindow::onCollapseSelected()
 }
 
 /*=============================================*/
+/*  新增：根据视图模式更新按钮启用/禁用状态    */
+/*=============================================*/
+void MainWindow::updateButtonStates()
+{
+    if (showingTreeView_) {
+        // 目录树模式：所有按钮可用
+        expandSelBtn_->setEnabled(true);
+        collapseSelBtn_->setEnabled(true);
+        expandSelBtn_->setToolTip("展开选中节点及其子树");
+        collapseSelBtn_->setToolTip("折叠选中节点及其子树");
+    }
+    else {
+        // 多叉树模式：展开选中/折叠选中不可用（置灰）
+        expandSelBtn_->setEnabled(false);
+        collapseSelBtn_->setEnabled(false);
+        expandSelBtn_->setToolTip("多叉树模式下不可用（请双击节点展开/折叠）");
+        collapseSelBtn_->setToolTip("多叉树模式下不可用（请双击节点展开/折叠）");
+    }
+}
+
+/*=============================================*/
 /*  语法树切换函数                             */
 /*=============================================*/
 void MainWindow::onSwitchView()
@@ -539,5 +609,194 @@ void MainWindow::onSwitchView()
         graphicsTreeView_->buildFromModel(treeModel_);
         treeStack_->setCurrentIndex(1);
         switchViewBtn_->setText("切换为目录树");
+
+        // 修复：延迟执行 fitInView，等待视图完成布局
+        QTimer::singleShot(50, this, [this]() {
+            graphicsTreeView_->refreshLayout();
+            });
     }
+
+    // 切换后更新按钮状态
+    updateButtonStates();
+}
+
+/*=============================================*/
+/*  弹窗查看（弹出当前视图类型，含完整功能）  */
+/*=============================================*/
+void MainWindow::onPopupView()
+{
+    QDialog* dialog = new QDialog(this);
+
+    // 弹出与当前主窗口相同的视图类型
+    QString title = showingTreeView_ ?
+        "语法树 - 目录树视图（弹窗）" : "语法树 - 多叉树视图（弹窗）";
+    dialog->setWindowTitle(title);
+    dialog->resize(1000, 700);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    QVBoxLayout* layout = new QVBoxLayout(dialog);
+
+    // 按钮区（与主窗口一致：展开全部、折叠全部、展开选中、折叠选中、切换视图）
+    QHBoxLayout* btnLayout = new QHBoxLayout();
+    auto* popExpandAllBtn = new QPushButton("展开全部", dialog);
+    auto* popCollapseAllBtn = new QPushButton("折叠全部", dialog);
+    auto* popExpandSelBtn = new QPushButton("展开选中", dialog);
+    auto* popCollapseSelBtn = new QPushButton("折叠选中", dialog);
+    auto* popSwitchBtn = new QPushButton(
+        showingTreeView_ ? "切换为多叉树" : "切换为目录树", dialog);
+
+    popExpandAllBtn->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ArrowDown));
+    popCollapseAllBtn->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ArrowUp));
+
+    btnLayout->addWidget(popExpandAllBtn);
+    btnLayout->addWidget(popCollapseAllBtn);
+    btnLayout->addWidget(popExpandSelBtn);
+    btnLayout->addWidget(popCollapseSelBtn);
+    btnLayout->addStretch();
+    btnLayout->addWidget(popSwitchBtn);
+    layout->addLayout(btnLayout);
+
+    // 视图区
+    auto* popStack = new QStackedWidget(dialog);
+    popStack->setObjectName("popupStack");
+
+    // 目录树视图
+    auto* popTreeView = new QTreeView(dialog);
+    popTreeView->setObjectName("popupTreeView");
+    popTreeView->setModel(treeModel_);
+    popTreeView->setFont(QFont("Consolas", 10));
+    popTreeView->setAnimated(true);
+    popTreeView->setIndentation(25);
+    popTreeView->setHeaderHidden(false);
+    popTreeView->setStyleSheet(
+        "QTreeView { background-color: #f0fff0; border: 1px solid #ccc; }");
+    popTreeView->expandAll();
+
+    // 多叉树视图
+    auto* popGraphicsView = new SyntaxTreeGraphicsView(dialog);
+    popGraphicsView->setObjectName("popupGraphicsView");
+
+    popStack->addWidget(popTreeView);      // index 0
+    popStack->addWidget(popGraphicsView);  // index 1
+
+    // 弹窗初始视图与主窗口一致
+    bool popShowingTree = showingTreeView_;
+    if (popShowingTree) {
+        popStack->setCurrentIndex(0);
+        // 置灰展开选中/折叠选中：目录树模式下可用
+        popExpandSelBtn->setEnabled(true);
+        popCollapseSelBtn->setEnabled(true);
+    }
+    else {
+        popGraphicsView->buildFromModel(treeModel_);
+        popStack->setCurrentIndex(1);
+        QTimer::singleShot(50, popGraphicsView, [popGraphicsView]() {
+            popGraphicsView->refreshLayout();
+            });
+        popExpandSelBtn->setEnabled(false);
+        popCollapseSelBtn->setEnabled(false);
+        popExpandSelBtn->setToolTip("多叉树模式下不可用");
+        popCollapseSelBtn->setToolTip("多叉树模式下不可用");
+    }
+
+    layout->addWidget(popStack);
+    dialog->setLayout(layout);
+
+    // 使用 shared_ptr 管理弹窗内状态
+    auto statePtr = std::make_shared<bool>(popShowingTree);
+
+    // 更新弹窗按钮状态的辅助 lambda
+    auto updatePopBtns = [=]() {
+        if (*statePtr) {
+            popExpandSelBtn->setEnabled(true);
+            popCollapseSelBtn->setEnabled(true);
+            popExpandSelBtn->setToolTip("展开选中节点及其子树");
+            popCollapseSelBtn->setToolTip("折叠选中节点及其子树");
+        }
+        else {
+            popExpandSelBtn->setEnabled(false);
+            popCollapseSelBtn->setEnabled(false);
+            popExpandSelBtn->setToolTip("多叉树模式下不可用(请双击节点展开/折叠)");
+            popCollapseSelBtn->setToolTip("多叉树模式下不可用(请双击节点展开/折叠)");
+        }
+        };
+
+    // 展开全部
+    connect(popExpandAllBtn, &QPushButton::clicked, dialog,
+        [statePtr, popTreeView, popGraphicsView]() {
+            if (*statePtr) popTreeView->expandAll();
+            else popGraphicsView->expandAll();
+        });
+
+    // 折叠全部
+    connect(popCollapseAllBtn, &QPushButton::clicked, dialog,
+        [statePtr, popTreeView, popGraphicsView]() {
+            if (*statePtr) popTreeView->collapseAll();
+            else popGraphicsView->collapseAll();
+        });
+
+    // 展开选中（仅目录树模式）
+    SyntaxTreeModel* modelPtr = treeModel_;
+    connect(popExpandSelBtn, &QPushButton::clicked, dialog,
+        [statePtr, popTreeView, modelPtr]() {
+            if (!*statePtr) return;
+            QModelIndex idx = popTreeView->currentIndex();
+            if (!idx.isValid()) return;
+            std::function<void(const QModelIndex&)> expRec;
+            expRec = [&](const QModelIndex& i) {
+                popTreeView->expand(i);
+                for (int r = 0; r < modelPtr->rowCount(i); r++)
+                    expRec(modelPtr->index(r, 0, i));
+                };
+            expRec(idx);
+        });
+
+    // 折叠选中（仅目录树模式）
+    connect(popCollapseSelBtn, &QPushButton::clicked, dialog,
+        [statePtr, popTreeView, modelPtr]() {
+            if (!*statePtr) return;
+            QModelIndex idx = popTreeView->currentIndex();
+            if (!idx.isValid()) return;
+            std::function<void(const QModelIndex&)> colRec;
+            colRec = [&](const QModelIndex& i) {
+                for (int r = 0; r < modelPtr->rowCount(i); r++)
+                    colRec(modelPtr->index(r, 0, i));
+                popTreeView->collapse(i);
+                };
+            colRec(idx);
+        });
+
+    // 切换视图
+    connect(popSwitchBtn, &QPushButton::clicked, dialog,
+        [this, statePtr, popStack, popSwitchBtn,
+        popGraphicsView, popTreeView, dialog, updatePopBtns]() {
+            *statePtr = !(*statePtr);
+            if (*statePtr) {
+                popStack->setCurrentIndex(0);
+                popSwitchBtn->setText("切换为多叉树");
+                dialog->setWindowTitle("语法树 - 目录树视图（弹窗）");
+            }
+            else {
+                popGraphicsView->buildFromModel(treeModel_);
+                popStack->setCurrentIndex(1);
+                popSwitchBtn->setText("切换为目录树");
+                dialog->setWindowTitle("语法树 - 多叉树视图（弹窗）");
+                QTimer::singleShot(50, popGraphicsView, [popGraphicsView]() {
+                    popGraphicsView->refreshLayout();
+                    });
+            }
+            updatePopBtns();
+        });
+
+    // 注册到弹窗列表，用于同步刷新
+    openPopups_.append(dialog);
+
+    // 弹窗关闭时从列表移除
+    connect(dialog, &QDialog::finished, this, [this, dialog]() {
+        openPopups_.removeOne(dialog);
+        });
+
+    dialog->show();
 }

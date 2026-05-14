@@ -45,7 +45,7 @@ public:
     // 节点属性
     struct {
         TokenType op;       // 运算符类型 (OpK时使用)
-        int val;            // 常量值 (ConstK时使用)
+        double val;            // 支持浮点数的常量值 (ConstK时使用)
         std::string name;   // 标识符名/字母 (IdK, LetterK, AssignK, ReadK等)
     } attr;
 

@@ -505,19 +505,20 @@ TreeNode* Parser::resexp()
     case TokenType::NUM:
         t = newExpNode(ExpKind::ConstK, currentToken_.lineno);
         if (t != nullptr) {
-            // 支持科学计数法：检查是否包含 e/E
-            const std::string& numStr = currentToken_.lexeme;
-            if (numStr.find('e') != std::string::npos ||
-                numStr.find('E') != std::string::npos) {
-                // 科学计数法，存为浮点值（转为整数近似）
-                t->attr.val = static_cast<int>(std::stod(numStr));
-                t->attr.name = numStr;  // 同时保存原始字符串
-            }
-            else {
-                t->attr.val = std::stoi(numStr);
-            }
+            t->attr.name = currentToken_.lexeme;  // 统一存入name
+            t->attr.val = std::stod(currentToken_.lexeme);
         }
         match(TokenType::NUM);
+        break;
+
+        // 新增：浮点数
+    case TokenType::FLOAT:
+        t = newExpNode(ExpKind::ConstK, currentToken_.lineno);
+        if (t != nullptr) {
+            t->attr.name = currentToken_.lexeme;  // 存原始字符串
+            t->attr.val = std::stod(currentToken_.lexeme);
+        }
+        match(TokenType::FLOAT);
         break;
 
     case TokenType::ID:
