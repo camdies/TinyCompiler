@@ -1,0 +1,117 @@
+# ============================================
+#  CMake 构建产物
+# ============================================
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+cmake_uninstall.cmake
+CTestTestfile.cmake
+CMakeUserPresets.json
+compile_commands.json
+*.cmake
+
+# ============================================
+#  CMakePresets 生成的构建/安装目录
+# ============================================
+out/
+
+# ============================================
+#  Qt 自动生成文件 (MOC/UIC/RCC)
+# ============================================
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+.qmake.stash
+*.pro.user*
+Makefile
+*.moc
+
+# ============================================
+#  Visual Studio / MSVC
+# ============================================
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.opendb
+*_i.c
+*_p.c
+*.ipdb
+
+# ============================================
+#  编译生成文件
+# ============================================
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.res
+*.pch
+*.idb
+*.tlog/
+*.lastbuildstate
+*.unsuccessfulbuild
+
+# ============================================
+#  Debug / Release 输出目录
+# ============================================
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+Win32/
+x64-[Dd]ebug/
+x64-[Rr]elease/
+x86-[Dd]ebug/
+x86-[Rr]elease/
+
+# ============================================
+#  Ninja 构建文件
+# ============================================
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+*.ninja
+
+# ============================================
+#  IDE / 编辑器
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.~lock.*
+*.orig
+*.bak
+
+# ============================================
+#  OS 系统文件
+# ============================================
+Thumbs.db
+.DS_Store
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================
+#  杂项
+# ============================================
+*.tmp
+*.temp
+*.log
