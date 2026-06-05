@@ -20,6 +20,7 @@ set(SOURCES
     src/syntaxtreemodel.cpp
     src/syntaxtreeview.cpp
     src/highlighter.cpp
+    src/codegen.cpp
 )
 
 set(HEADERS
@@ -31,6 +32,7 @@ set(HEADERS
     src/syntaxtreemodel.h
     src/syntaxtreeview.h
     src/highlighter.h
+    src/codegen.h
 )
 
 # 创建可执行文件

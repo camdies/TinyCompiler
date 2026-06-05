@@ -150,9 +150,30 @@ void MainWindow::setupUI()
     syntaxLayout->addWidget(treeStack_);
     syntaxTab_->setLayout(syntaxLayout);
 
+    // ----- 中间代码Tab-----
+    codeTab_ = new QWidget(this);
+    QVBoxLayout* codeLayout = new QVBoxLayout(codeTab_);
+
+    codeTable_ = new QTableWidget(this);
+    codeTable_->setColumnCount(5);
+    codeTable_->setHorizontalHeaderLabels(
+        { "序号", "操作码", "操作数1", "操作数2", "结果" });
+    codeTable_->horizontalHeader()->setStretchLastSection(true);
+    codeTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    codeTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    codeTable_->setFont(QFont("Consolas", 10));
+    codeTable_->setStyleSheet(
+        "QTableWidget { background-color: #f0fff0; "
+        "border: 1px solid #ccc; }"
+    );
+
+    codeLayout->addWidget(codeTable_);
+    codeTab_->setLayout(codeLayout);
+
     // 添加Tabs
     resultTabs_->addTab(lexTab_, "词法分析");
     resultTabs_->addTab(syntaxTab_, "语法分析");
+    resultTabs_->addTab(codeTab_, "中间代码生成");
 
     // ----- 错误信息表 -----
     errorTable_ = new QTableWidget(this);
@@ -254,8 +275,9 @@ void MainWindow::setupMenuBar()
             "TINY扩充语言语法树生成器\n\n"
             "功能:\n"
             "- 支持扩充的TINY语言文法\n"
-            "- 词法分析与语法分析\n"
+            "- 词法分析、语法分析和中间代码生成\n"
             "- 语法树可视化(可展开/折叠)\n"
+			"- 中间代码生成以四元组形式表现\n"
             "- 支持 if/while/for/repeat 语句\n"
             "- 支持正则表达式赋值\n"
             "- 支持前置自增(++)、自减(--)\n"
@@ -371,6 +393,10 @@ void MainWindow::onAnalyze()
     treeModel_->setSyntaxTree(syntaxTree_);
     syntaxTreeView_->expandAll();
 
+    // 中间代码生成
+    codeGen_.generate(syntaxTree_);
+    showQuadruples(codeGen_.getQuadruples());
+
     // 修复：如果当前是多叉树模式，立即构建并延迟刷新布局
     if (!showingTreeView_) {
         graphicsTreeView_->buildFromModel(treeModel_);
@@ -386,6 +412,8 @@ void MainWindow::onAnalyze()
         allErrors.push_back("[词法] " + e);
     for (auto& e : parser_.getErrors())
         allErrors.push_back("[语法] " + e);
+    for (auto& e : codeGen_.getErrors())
+        allErrors.push_back("[代码生成] " + e);
 
     showErrors(allErrors);
 
@@ -500,6 +528,63 @@ void MainWindow::showErrors(const std::vector<std::string>& errors)
     }
 
     errorTable_->resizeColumnsToContents();
+}
+
+/*=============================================*/
+/*  显示中间代码四元组列表（新增）              */
+/*=============================================*/
+void MainWindow::showQuadruples(const std::vector<Quadruple>& quads)
+{
+    codeTable_->setRowCount(0);
+
+    if (quads.empty()) {
+        codeTable_->setRowCount(1);
+        QTableWidgetItem* item = new QTableWidgetItem("（无四元组生成）");
+        item->setForeground(Qt::gray);
+        codeTable_->setItem(0, 0, item);
+        return;
+    }
+
+    codeTable_->setRowCount(static_cast<int>(quads.size()));
+
+    for (int i = 0; i < static_cast<int>(quads.size()); i++) {
+        const Quadruple& q = quads[i];
+
+        // 序号
+        auto* idxItem = new QTableWidgetItem(
+            QString("(%1)").arg(q.index));
+        idxItem->setTextAlignment(Qt::AlignCenter);
+
+        // 操作码
+        auto* opItem = new QTableWidgetItem(
+            QString::fromStdString(q.op));
+        opItem->setTextAlignment(Qt::AlignCenter);
+
+        // 操作数1（空显示为 _）
+        std::string a1 = q.arg1.empty() ? "_" : q.arg1;
+        auto* arg1Item = new QTableWidgetItem(
+            QString::fromStdString(a1));
+        arg1Item->setTextAlignment(Qt::AlignCenter);
+
+        // 操作数2（空显示为 _）
+        std::string a2 = q.arg2.empty() ? "_" : q.arg2;
+        auto* arg2Item = new QTableWidgetItem(
+            QString::fromStdString(a2));
+        arg2Item->setTextAlignment(Qt::AlignCenter);
+
+        // 结果
+        auto* resItem = new QTableWidgetItem(
+            QString::fromStdString(q.result));
+        resItem->setTextAlignment(Qt::AlignCenter);
+
+        codeTable_->setItem(i, 0, idxItem);
+        codeTable_->setItem(i, 1, opItem);
+        codeTable_->setItem(i, 2, arg1Item);
+        codeTable_->setItem(i, 3, arg2Item);
+        codeTable_->setItem(i, 4, resItem);
+    }
+
+    codeTable_->resizeColumnsToContents();
 }
 
 /*=============================================*/

@@ -39,6 +39,7 @@
 #include "syntaxtreemodel.h"
 #include "syntaxtreeview.h"
 #include "highlighter.h"
+#include "codegen.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -68,6 +69,7 @@ private:
     void setupMenuBar();        // 初始化菜单栏
     void showTokens(const std::vector<Token>& tokens);
     void showErrors(const std::vector<std::string>& errors);
+    void showQuadruples(const std::vector<Quadruple>& quads);
 
     // 新增：同步刷新所有已打开的弹窗
     void refreshAllPopups();
@@ -102,6 +104,13 @@ private:
     QPushButton* popupViewBtn_;    // 新增：弹窗查看按钮
     bool showingTreeView_;             // true=目录树, false=多叉树
     QStackedWidget* treeStack_;        // 用于切换两个视图
+
+    // 中间代码Tab
+    QWidget* codeTab_;
+    QTableWidget* codeTable_;
+
+    // 中间代码生成器
+    CodeGenerator codeGen_;
 
     // 错误显示
     QTableWidget* errorTable_;
