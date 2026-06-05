@@ -70,6 +70,7 @@ void CodeGenerator::generate(TreeNode* root)
     clear();
     if (root == nullptr) return;
     genStmtSequence(root);
+    finalize();
 }
 
 /*=============================================*/
@@ -580,4 +581,31 @@ BoolResult CodeGenerator::genBoolExp(TreeNode* node)
     int jFalse = emitQuad("j", "_", "_", "0");
     res.falseList.push_back(jFalse);
     return res;
+}
+
+/*=============================================*/
+/*  补齐假出口占位行                            */
+/*  扫描所有跳转四元组的result字段，            */
+/*  若目标编号超出当前四元组数组范围，          */
+/*  则补发空四元组（仅有序号，其余字段留空）    */
+/*=============================================*/
+void CodeGenerator::finalize()
+{
+    int maxTarget = static_cast<int>(quads_.size());
+    for (const auto& q : quads_) {
+        if (q.op.empty()) continue;
+        // 所有跳转类指令的result都是目标序号
+        if (q.op[0] == 'j') {
+            try {
+                int t = std::stoi(q.result);
+                if (t > maxTarget) maxTarget = t;
+            }
+            catch (...) {}
+        }
+    }
+    // 补发占位空四元组（假出口行）
+    while (static_cast<int>(quads_.size()) < maxTarget) {
+        ++quadCount_;
+        quads_.emplace_back(quadCount_, "", "", "", "");
+    }
 }

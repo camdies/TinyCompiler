@@ -34,6 +34,7 @@
 #include <QMenu>
 #include <QDialog>
 #include <QStackedWidget>
+#include <QPlainTextEdit>
 
 #include "parser.h"
 #include "syntaxtreemodel.h"
@@ -60,8 +61,9 @@ private slots:
     void onCollapseSelected();  // 折叠选中节点
 
     void onSwitchView();               // 切换目录树/多叉树
-    void onPopupView();          // 新增：弹窗查看语法树
-    void updateButtonStates();   // 新增：根据当前视图模式更新按钮状态
+    void onPopupView();          // 弹窗查看语法树
+    void updateButtonStates();   // 根据当前视图模式更新按钮状态
+    void onSwitchCodeView();   // 切换中间代码表格/文本视图
 
 private:
     void setupUI();             // 初始化界面
@@ -106,8 +108,13 @@ private:
     QStackedWidget* treeStack_;        // 用于切换两个视图
 
     // 中间代码Tab
+        // 中间代码Tab
     QWidget* codeTab_;
+    QStackedWidget* codeStack_;        // 切换表格/文本视图
     QTableWidget* codeTable_;
+    QPlainTextEdit* codeTextView_;     // 文本形式展示
+    QPushButton* switchCodeViewBtn_;   // 切换按钮
+    bool showingCodeTable_;            // true=表格, false=文本
 
     // 中间代码生成器
     CodeGenerator codeGen_;

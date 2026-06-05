@@ -99,6 +99,7 @@ private:
         const std::string& arg1,
         const std::string& arg2,
         const std::string& result);
+    void finalize();   // 补齐假出口占位行
     void backpatch(const std::vector<int>& patchList, int target);
     std::vector<int> merge(const std::vector<int>& a, const std::vector<int>& b);
 

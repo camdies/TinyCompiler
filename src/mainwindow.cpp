@@ -23,7 +23,7 @@
 #include <memory>
 
 MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), syntaxTree_(nullptr), showingTreeView_(true)
+    : QMainWindow(parent), syntaxTree_(nullptr), showingTreeView_(true), showingCodeTable_(true)
 {
     setWindowTitle("TINY扩充语言 - 语法树生成器");
     resize(1200, 750);
@@ -153,7 +153,16 @@ void MainWindow::setupUI()
     // ----- 中间代码Tab-----
     codeTab_ = new QWidget(this);
     QVBoxLayout* codeLayout = new QVBoxLayout(codeTab_);
-
+    // 切换按钮
+    QHBoxLayout* codeBtnLayout = new QHBoxLayout();
+    switchCodeViewBtn_ = new QPushButton("切换为文本形式", this);
+    codeBtnLayout->addStretch();
+    codeBtnLayout->addWidget(switchCodeViewBtn_);
+    codeLayout->addLayout(codeBtnLayout);
+    // 使用 QStackedWidget 切换两种视图
+    codeStack_ = new QStackedWidget(this);
+    showingCodeTable_ = true;
+    // 表格视图(index 0)
     codeTable_ = new QTableWidget(this);
     codeTable_->setColumnCount(5);
     codeTable_->setHorizontalHeaderLabels(
@@ -166,9 +175,22 @@ void MainWindow::setupUI()
         "QTableWidget { background-color: #f0fff0; "
         "border: 1px solid #ccc; }"
     );
-
-    codeLayout->addWidget(codeTable_);
+    // 文本视图(index 1)
+    codeTextView_ = new QPlainTextEdit(this);
+    codeTextView_->setReadOnly(true);
+    codeTextView_->setFont(QFont("Consolas", 10));
+    codeTextView_->setStyleSheet(
+        "QPlainTextEdit { background-color: #f0fff0; "
+        "border: 1px solid #ccc; }"
+    );
+    codeStack_->addWidget(codeTable_);     // index 0
+    codeStack_->addWidget(codeTextView_);  // index 1
+    codeStack_->setCurrentIndex(0);
+    codeLayout->addWidget(codeStack_);
     codeTab_->setLayout(codeLayout);
+    // 连接切换按钮
+    connect(switchCodeViewBtn_, &QPushButton::clicked,
+        this, &MainWindow::onSwitchCodeView);
 
     // 添加Tabs
     resultTabs_->addTab(lexTab_, "词法分析");
@@ -510,12 +532,17 @@ void MainWindow::showErrors(const std::vector<std::string>& errors)
     for (int i = 0; i < static_cast<int>(errors.size()); i++) {
         const std::string& err = errors[i];
         QTableWidgetItem* typeItem;
-
         if (err.find("[词法]") != std::string::npos) {
             typeItem = new QTableWidgetItem("词法错误");
         }
-        else {
+        else if (err.find("[语法]") != std::string::npos) {
             typeItem = new QTableWidgetItem("语法错误");
+        }
+        else if (err.find("[代码生成]") != std::string::npos) {
+            typeItem = new QTableWidgetItem("代码生成错误");
+        }
+        else {
+            typeItem = new QTableWidgetItem("未知错误");
         }
         typeItem->setForeground(Qt::red);
 
@@ -531,60 +558,120 @@ void MainWindow::showErrors(const std::vector<std::string>& errors)
 }
 
 /*=============================================*/
-/*  显示中间代码四元组列表（新增）              */
+/*  显示中间代码四元组列表                    */
 /*=============================================*/
 void MainWindow::showQuadruples(const std::vector<Quadruple>& quads)
 {
+    // ========== 1. 填充表格视图 ==========
     codeTable_->setRowCount(0);
-
     if (quads.empty()) {
         codeTable_->setRowCount(1);
         QTableWidgetItem* item = new QTableWidgetItem("（无四元组生成）");
         item->setForeground(Qt::gray);
         codeTable_->setItem(0, 0, item);
+        codeTextView_->clear();
         return;
     }
-
     codeTable_->setRowCount(static_cast<int>(quads.size()));
-
     for (int i = 0; i < static_cast<int>(quads.size()); i++) {
         const Quadruple& q = quads[i];
-
+        // --- 判断是否为占位空行（假出口行） ---
+        bool isPlaceholder = q.op.empty();
         // 序号
         auto* idxItem = new QTableWidgetItem(
             QString("(%1)").arg(q.index));
         idxItem->setTextAlignment(Qt::AlignCenter);
-
+        if (isPlaceholder) {
+            // 假出口占位行：其余列留空
+            codeTable_->setItem(i, 0, idxItem);
+            // 操作码、操作数1、操作数2、结果都留空
+            for (int col = 1; col <= 4; col++) {
+                codeTable_->setItem(i, col, new QTableWidgetItem(""));
+            }
+            continue;
+        }
         // 操作码
         auto* opItem = new QTableWidgetItem(
             QString::fromStdString(q.op));
         opItem->setTextAlignment(Qt::AlignCenter);
-
-        // 操作数1（空显示为 _）
+        // 操作数1
         std::string a1 = q.arg1.empty() ? "_" : q.arg1;
         auto* arg1Item = new QTableWidgetItem(
             QString::fromStdString(a1));
         arg1Item->setTextAlignment(Qt::AlignCenter);
-
-        // 操作数2（空显示为 _）
+        // 操作数2
         std::string a2 = q.arg2.empty() ? "_" : q.arg2;
         auto* arg2Item = new QTableWidgetItem(
             QString::fromStdString(a2));
         arg2Item->setTextAlignment(Qt::AlignCenter);
-
-        // 结果
-        auto* resItem = new QTableWidgetItem(
-            QString::fromStdString(q.result));
+        // 结果：若为纯数字跳转目标，显示为 (num) 格式
+        std::string resultStr = q.result;
+        QString resultDisplay;
+        bool isJumpTarget = false;
+        if (!q.op.empty() && q.op[0] == 'j' && !resultStr.empty() && resultStr != "0") {
+            // 尝试解析为整数
+            try {
+                int tgt = std::stoi(resultStr);
+                resultDisplay = QString("(%1)").arg(tgt);
+                isJumpTarget = true;
+            }
+            catch (...) {
+                resultDisplay = QString::fromStdString(resultStr);
+            }
+        }
+        else {
+            resultDisplay = QString::fromStdString(resultStr);
+        }
+        auto* resItem = new QTableWidgetItem(resultDisplay);
         resItem->setTextAlignment(Qt::AlignCenter);
-
         codeTable_->setItem(i, 0, idxItem);
         codeTable_->setItem(i, 1, opItem);
         codeTable_->setItem(i, 2, arg1Item);
         codeTable_->setItem(i, 3, arg2Item);
         codeTable_->setItem(i, 4, resItem);
     }
-
     codeTable_->resizeColumnsToContents();
+    // ========== 2. 填充文本视图 ==========
+    QString textOutput;
+    for (int i = 0; i < static_cast<int>(quads.size()); i++) {
+        const Quadruple& q = quads[i];
+        bool isPlaceholder = q.op.empty();
+        // 序号 (固定格式)
+        QString idxPart = QString("(%1) ").arg(q.index);
+        textOutput += idxPart;
+        if (isPlaceholder) {
+            // 假出口占位行：仅有序号，换行
+            textOutput += "\n";
+            continue;
+        }
+        // 操作码
+        QString opPart = QString::fromStdString(q.op);
+        // 操作数1
+        std::string a1 = q.arg1.empty() ? "_" : q.arg1;
+        QString arg1Part = QString::fromStdString(a1);
+        // 操作数2
+        std::string a2 = q.arg2.empty() ? "_" : q.arg2;
+        QString arg2Part = QString::fromStdString(a2);
+        // 结果：跳转目标加括号
+        std::string resultStr = q.result;
+        QString resPart;
+        if (!q.op.empty() && q.op[0] == 'j' && !resultStr.empty() && resultStr != "0") {
+            try {
+                int tgt = std::stoi(resultStr);
+                resPart = QString("(%1)").arg(tgt);
+            }
+            catch (...) {
+                resPart = QString::fromStdString(resultStr);
+            }
+        }
+        else {
+            resPart = QString::fromStdString(resultStr);
+        }
+        // 组合为 (op, arg1, arg2, result) 形式
+        textOutput += QString("(%1 , %2 , %3 , %4)\n")
+            .arg(opPart, arg1Part, arg2Part, resPart);
+    }
+    codeTextView_->setPlainText(textOutput);
 }
 
 /*=============================================*/
@@ -703,6 +790,22 @@ void MainWindow::onSwitchView()
 
     // 切换后更新按钮状态
     updateButtonStates();
+}
+
+/*=============================================*/
+/*  中间代码视图切换（表格/文本）              */
+/*=============================================*/
+void MainWindow::onSwitchCodeView()
+{
+    showingCodeTable_ = !showingCodeTable_;
+    if (showingCodeTable_) {
+        codeStack_->setCurrentIndex(0);
+        switchCodeViewBtn_->setText("切换为文本形式");
+    }
+    else {
+        codeStack_->setCurrentIndex(1);
+        switchCodeViewBtn_->setText("切换为表格形式");
+    }
 }
 
 /*=============================================*/
