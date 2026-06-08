@@ -23,7 +23,7 @@
 #include <memory>
 
 MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent), syntaxTree_(nullptr), showingTreeView_(true), showingCodeTable_(true)
+    : QMainWindow(parent), syntaxTree_(nullptr), showingTreeView_(true), showingCodeTable_(false)
 {
     setWindowTitle("TINY扩充语言 - 语法树生成器");
     resize(1200, 750);
@@ -155,7 +155,7 @@ void MainWindow::setupUI()
     QVBoxLayout* codeLayout = new QVBoxLayout(codeTab_);
     // 切换按钮
     QHBoxLayout* codeBtnLayout = new QHBoxLayout();
-    switchCodeViewBtn_ = new QPushButton("切换为文本形式", this);
+    switchCodeViewBtn_ = new QPushButton("切换为表格形式", this);
     codeBtnLayout->addStretch();
     codeBtnLayout->addWidget(switchCodeViewBtn_);
     codeLayout->addLayout(codeBtnLayout);
@@ -185,7 +185,7 @@ void MainWindow::setupUI()
     );
     codeStack_->addWidget(codeTable_);     // index 0
     codeStack_->addWidget(codeTextView_);  // index 1
-    codeStack_->setCurrentIndex(0);
+    codeStack_->setCurrentIndex(1);
     codeLayout->addWidget(codeStack_);
     codeTab_->setLayout(codeLayout);
     // 连接切换按钮
