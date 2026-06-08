@@ -440,7 +440,7 @@ void MainWindow::onAnalyze()
     showErrors(allErrors);
 
     // 切换到语法分析Tab
-    resultTabs_->setCurrentIndex(1);
+    resultTabs_->setCurrentIndex(2);
 
     // 同步刷新所有已打开的弹窗
     refreshAllPopups();
@@ -579,7 +579,7 @@ void MainWindow::showQuadruples(const std::vector<Quadruple>& quads)
         bool isPlaceholder = q.op.empty();
         // 序号
         auto* idxItem = new QTableWidgetItem(
-            QString("(%1)").arg(q.index));
+            QString("<%1>").arg(q.index));
         idxItem->setTextAlignment(Qt::AlignCenter);
         if (isPlaceholder) {
             // 假出口占位行：其余列留空
@@ -612,7 +612,7 @@ void MainWindow::showQuadruples(const std::vector<Quadruple>& quads)
             // 尝试解析为整数
             try {
                 int tgt = std::stoi(resultStr);
-                resultDisplay = QString("(%1)").arg(tgt);
+                resultDisplay = QString("<%1>").arg(tgt);
                 isJumpTarget = true;
             }
             catch (...) {
@@ -637,7 +637,7 @@ void MainWindow::showQuadruples(const std::vector<Quadruple>& quads)
         const Quadruple& q = quads[i];
         bool isPlaceholder = q.op.empty();
         // 序号 (固定格式)
-        QString idxPart = QString("(%1) ").arg(q.index);
+        QString idxPart = QString("<%1> ").arg(q.index);
         textOutput += idxPart;
         if (isPlaceholder) {
             // 假出口占位行：仅有序号，换行
@@ -658,7 +658,7 @@ void MainWindow::showQuadruples(const std::vector<Quadruple>& quads)
         if (!q.op.empty() && q.op[0] == 'j' && !resultStr.empty() && resultStr != "0") {
             try {
                 int tgt = std::stoi(resultStr);
-                resPart = QString("(%1)").arg(tgt);
+                resPart = QString("<%1>").arg(tgt);
             }
             catch (...) {
                 resPart = QString::fromStdString(resultStr);
