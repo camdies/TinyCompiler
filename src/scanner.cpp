@@ -280,10 +280,13 @@ Token Scanner::getToken()
             break;
 
         case State::INPLUS:
-            // + 后面可能是 + (++)
+            // + 后面可能是 + (++) 或 = (+=)
             state = State::DONE;
             if (c == '+') {
                 currentToken = TokenType::INC;  // ++
+            }
+            else if (c == '=') {
+                currentToken = TokenType::PLUS_ASSIGN;  // +=
             }
             else {
                 ungetChar();
@@ -293,10 +296,13 @@ Token Scanner::getToken()
             break;
 
         case State::INMINUS:
-            // - 后面可能是 - (--)
+            // - 后面可能是 - (--) 或 = (-=)
             state = State::DONE;
             if (c == '-') {
                 currentToken = TokenType::DEC;  // --
+            }
+            else if (c == '=') {
+                currentToken = TokenType::MINUS_ASSIGN;  // -=
             }
             else {
                 ungetChar();
@@ -515,6 +521,8 @@ std::string Scanner::tokenTypeName(TokenType type)
     case TokenType::FLOAT:          return "FLOAT";
     case TokenType::LETTER:         return "LETTER";
     case TokenType::ASSIGN:         return "ASSIGN(':=')";
+    case TokenType::PLUS_ASSIGN:   return "PLUS_ASSIGN('+=')";
+    case TokenType::MINUS_ASSIGN:  return "MINUS_ASSIGN('-=')";
     case TokenType::REGEX_ASSIGN:   return "REGEX_ASSIGN('::=')";
     case TokenType::EQ:             return "EQ('=')";
     case TokenType::LT:             return "LT('<')";

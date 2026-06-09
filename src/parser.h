@@ -22,7 +22,8 @@
 /*             stmt-seq endfor                       */
 /* while-stmt -> while(exp) stmt-seq endwhile        */
 /* assign-stmt -> id assign-sub-stmt                 */
-/* assign-sub-stmt -> := exp | == re                 */
+/* assign-sub-stmt -> := exp | += exp | -= exp       */
+/*                  | ::= re                         */
 /* read-stmt -> read id                              */
 /* write-stmt -> write (exp | letter)                */
 /* exp -> simple-exp [comp-op simple-exp]            */
