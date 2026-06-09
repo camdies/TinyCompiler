@@ -38,7 +38,14 @@ std::string TreeNode::getDisplayText() const
         switch (kind.stmt) {
         case StmtKind::IfK:        return "if";
         case StmtKind::RepeatK:    return "repeat";
-        case StmtKind::AssignK:    return ":=";
+        case StmtKind::AssignK: {
+            switch (attr.op) {
+            case TokenType::ASSIGN:        return ":=";
+            case TokenType::PLUS_ASSIGN:   return "+=";
+            case TokenType::MINUS_ASSIGN:  return "-=";
+            default:                       return "assign";
+            }
+        }
         case StmtKind::RegAssignK: return "::=";
         case StmtKind::ReadK:      return "read";
         case StmtKind::WriteK:     return "write";

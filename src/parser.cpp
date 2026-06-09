@@ -290,7 +290,8 @@ TreeNode* Parser::for_stmt()
 
 /*=============================================*/
 /* assign-stmt -> identifier assign-sub-stmt    */
-/* assign-sub-stmt -> := exp | == re            */
+/* assign-sub-stmt -> := exp | += exp |         */
+/*                    -= exp | ::= re           */
 /*=============================================*/
 TreeNode* Parser::assign_stmt()
 {
@@ -299,10 +300,14 @@ TreeNode* Parser::assign_stmt()
 
     match(TokenType::ID);
 
-    if (currentToken_.type == TokenType::ASSIGN) {
-        // := exp
+    if (currentToken_.type == TokenType::ASSIGN ||
+        currentToken_.type == TokenType::PLUS_ASSIGN ||
+        currentToken_.type == TokenType::MINUS_ASSIGN)
+    {
+        TokenType assignOp = currentToken_.type;
         TreeNode* t = newStmtNode(StmtKind::AssignK, line);
-        match(TokenType::ASSIGN);
+        t->attr.op = assignOp;   // 存储赋值操作符类型
+        match(assignOp);
         if (t != nullptr) {
             TreeNode* idNode = newExpNode(ExpKind::IdK, line);
             if (idNode) idNode->attr.name = name;
@@ -324,7 +329,7 @@ TreeNode* Parser::assign_stmt()
         return t;
     }
     else {
-        syntaxError("赋值语句中期望 ':=' 或 '::='，但得到 '"
+        syntaxError("赋值语句中期望 ':='、'+='、'-=' 或 '::='，但得到 '"
             + currentToken_.lexeme + "'");
         TreeNode* t = newStmtNode(StmtKind::AssignK, line);
         if (t != nullptr) t->attr.name = name;

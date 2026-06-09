@@ -340,9 +340,13 @@ void CodeGenerator::genForStmt(TreeNode* node)
 }
 
 /*=============================================*/
-/*  赋值语句  id := exp                        */
+/*  赋值语句  id := exp | id += exp | id -= exp */
 /*  child[0]=id节点, child[1]=exp节点          */
-/*  生成：(:=, expResult, _, id)               */
+/*  := 生成：(:=, expResult, _, id)             */
+/*  += 生成：(+, id, expResult, Tn)             */
+/*          (:=, Tn, _, id)                     */
+/*  -= 生成：(-, id, expResult, Tn)             */
+/*          (:=, Tn, _, id)                     */
 /*=============================================*/
 void CodeGenerator::genAssignStmt(TreeNode* node)
 {
@@ -356,9 +360,27 @@ void CodeGenerator::genAssignStmt(TreeNode* node)
     }
 
     std::string varName = idNode->attr.name;
-    Operand val = genExp(expNode);
+    TokenType assignOp = node->attr.op;
 
-    emitQuad(":=", val.str(), "_", varName);
+    if (assignOp == TokenType::PLUS_ASSIGN) {
+        // id += exp => T1 = id + exp; id = T1
+        Operand val = genExp(expNode);
+        std::string tmp = newTemp();
+        emitQuad("+", varName, val.str(), tmp);
+        emitQuad(":=", tmp, "_", varName);
+    }
+    else if (assignOp == TokenType::MINUS_ASSIGN) {
+        // id -= exp => T1 = id - exp; id = T1
+        Operand val = genExp(expNode);
+        std::string tmp = newTemp();
+        emitQuad("-", varName, val.str(), tmp);
+        emitQuad(":=", tmp, "_", varName);
+    }
+    else {
+        // := 普通赋值
+        Operand val = genExp(expNode);
+        emitQuad(":=", val.str(), "_", varName);
+    }
 }
 
 /*=============================================*/

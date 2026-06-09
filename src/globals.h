@@ -37,6 +37,8 @@ enum class TokenType {
 
     // ---- 赋值运算符 ----
     ASSIGN,                         // :=  (算术表达式赋值)
+    PLUS_ASSIGN,                    // +=  (加法赋值)
+    MINUS_ASSIGN,                   // -=  (减法赋值)
     REGEX_ASSIGN,                   // ::= (正则表达式赋值)
 
     // ---- 比较运算符 ----
